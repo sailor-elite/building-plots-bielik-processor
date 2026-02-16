@@ -1,0 +1,29 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+.ipynb_checkpoints/main_process_bielik-checkpoint.ipynb
+.ipynb_checkpoints/main_process_bielik-checkpoint.py
+.ipynb_checkpoints/pyproject-checkpoint.toml
+.ipynb_checkpoints/secrets-checkpoint.toml
+.python-version
+.ipynb_checkpoints/uv-checkpoint.lock
+bielik_v3_local/.gitattributes
+bielik_v3_local/config.json
+bielik_v3_local/generation_config.json
+bielik_v3_local/model.safetensors
+bielik_v3_local/README.md
+bielik_v3_local/.ipynb_checkpoints/special_tokens_map-checkpoint.json
+bielik_v3_local/special_tokens_map.json
+bielik_v3_local/special_tokens_map.json
+bielik_v3_local/tokenizer_config.json
+bielik_v3_local/tokenizer.json
+**/*.db
+del/.gitattributes
+**/*.toml
