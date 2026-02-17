@@ -302,10 +302,8 @@ output_db_path = os.path.join(OUTPUT_FOLDER, "processed_offers.db")
 
 with sqlite3.connect(output_db_path) as conn:
         main_df.to_sql("analyzed_offers", conn, if_exists="replace", index=False)
-    print(f"Sukces! Dane zostały zapisane w: {output_db_path}")
 
 # -
-
 
 
 
