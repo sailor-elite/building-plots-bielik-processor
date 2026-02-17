@@ -55,11 +55,15 @@ SYSTEM_PROMPT = (
 )
 
 
+TABLE_PROCESSED = "analyzed_offers"
+
 with open("secrets.toml", "rb") as f:
     config = tomllib.load(f)
 creds = config["mikrus"]
 
 OUTPUT_FOLDER = "output"
+
+NEW_NAME = "olx.db"
 
 
 # # Helper functions
@@ -181,8 +185,6 @@ def save_analysis_to_db(df: pd.DataFrame, db_name: str, table_name: str, analysi
             SELECT {analysis_col}
             FROM {table_name}_analysis_temp
             WHERE {table_name}_analysis_temp.index = {table_name}.index_col 
-            -- Zmienić 'index_col' na faktyczną nazwę kolumny ID/Primary Key w tabeli fourlomza_raw!
-            -- Zakładam, że Primary Key to po prostu 'id' lub podobna nazwa
         )
         WHERE EXISTS (
             SELECT 1
@@ -215,7 +217,7 @@ def download_db():
     local_filename = f"{now}_olx.db"
     local_full_path = os.path.join(folder_name, local_filename)
 
-    print(f"Łączenie z {creds['host']}...")
+    print(f"Connecting {creds['host']}...")
     
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -232,11 +234,11 @@ def download_db():
             print(f"Pobieranie {creds['remote_path']} -> {local_full_path}")
             scp.get(creds["remote_path"], local_full_path)
             
-        print(f"Baza danych pobrana pomyślnie jako: {local_full_path}")
+        print(f"Database saved as: {local_full_path}")
         return local_full_path  
         
     except Exception as e:
-        print(f"Błąd podczas pobierania: {e}")
+        print(f"Error: {e}")
         return None
     finally:
         ssh.close()
@@ -246,12 +248,87 @@ def get_latest_db_path(folder="db"):
     files = glob.glob(os.path.join(folder, "*.db"))
     
     if not files:
-        print("Błąd: Nie znaleziono żadnych plików bazy danych w folderze 'db'!")
+        print("Not found file with extension 'db'!")
         return None
     
     latest_file = max(files)
-    print(f"Wybrano najnowszą bazę: {latest_file}")
+    print(f"newest file: {latest_file}")
     return latest_file
+
+
+def upload_db(local_full_path):
+    if not local_full_path or not os.path.exists(local_full_path):
+        print("Local file doesn't exist.")
+        return False
+
+    original_filename = os.path.basename(local_full_path)
+    new_filename = NEW_NAME 
+    
+    remote_upload_path = os.path.join(creds["remote_folder"], new_filename)
+
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+    try:
+        ssh.connect(
+            hostname=creds["host"],
+            port=creds["port"],
+            username=creds["user"],
+            password=creds["password"]
+        )
+
+        with SCPClient(ssh.get_transport()) as scp:
+            print(f"Sending {local_full_path} -> {remote_upload_path}")
+            scp.put(local_full_path, remote_upload_path)
+
+        print(f"File succcesfully sent: {new_filename}")
+        return True
+
+    except Exception as e:
+        print(f"Error: {e}")
+        return False
+    finally:
+        ssh.close()
+
+
+def merge_and_upload(local_full_path):
+    master_db = get_latest_db_path()
+    
+    if not os.path.exists(local_full_path):
+        print("Source file does not exist.")
+        return
+
+    try:
+        conn = sqlite3.connect(master_db)
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute("DETACH DATABASE source_db")
+        except:
+            pass
+            
+        cursor.execute(f"ATTACH DATABASE '{local_full_path}' AS source_db")
+
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='analyzed_offers'")
+        table_exists = cursor.fetchone()
+
+        if not table_exists:
+            cursor.execute("CREATE TABLE main.analyzed_offers AS SELECT * FROM source_db.analyzed_offers")
+        else:
+            cursor.execute("INSERT OR IGNORE INTO main.analyzed_offers SELECT * FROM source_db.analyzed_offers")
+        
+        added_count = conn.total_changes
+        conn.commit()
+        
+        print(f"Success: Processed {added_count} records.")
+
+        cursor.execute("DETACH DATABASE source_db")
+        conn.close()
+
+        upload_db(master_db)
+
+    except Exception as e:
+        print(f"Error: {e}")
 
 
 # # Loading data
@@ -260,6 +337,12 @@ download_db()
 
 DB_NAME = get_latest_db_path()
 main_df = load_data_to_df(DB_NAME, TABLE_NAME)
+
+data_ids = load_data_to_df(DB_NAME, TABLE_PROCESSED)
+
+main_df = main_df[~main_df["ID"].isin(data_ids["ID"].unique())]
+
+len(main_df)
 
 # # Data processing
 
@@ -297,7 +380,7 @@ for col in columns:
 
 # +
 now = datetime.now().strftime("%Y-%m-%d")
-output_db_path = os.path.join(OUTPUT_FOLDER, "processed_offers.db")
+output_db_path = os.path.join(OUTPUT_FOLDER, f"{now}_olx_output.db")
 
 
 with sqlite3.connect(output_db_path) as conn:
@@ -305,5 +388,22 @@ with sqlite3.connect(output_db_path) as conn:
 
 # -
 
+
+# ## Sending data to server
+
+output_db_path = os.path.join(OUTPUT_FOLDER, f"{now}_olx_output.db")
+
+conn = sqlite3.connect(output_db_path)
+
+upload_df = pd.read_sql("SELECT * FROM analyzed_offers", conn)
+conn.close()
+
+upload_df = upload_df.drop_duplicates("ID")
+
+conn_clean = sqlite3.connect(output_db_path)
+upload_df.to_sql("analyzed_offers", conn_clean, if_exists="replace", index=False)
+conn_clean.close()
+
+merge_and_upload(output_db_path)
 
 
