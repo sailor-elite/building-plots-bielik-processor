@@ -1,9 +1,9 @@
 # Building Plots Bielik Processor
 
-A specialized Jupyter Notebook designed to process listings using the **Bielik-1.5B-v3** Large Language Model.
+Jupyter Notebook designed to process listings using the **Bielik-1.5B-v3** Large Language Model.
 
 ## Workflow
-1. **Fetch:** Connects to a remote VPS database to download raw scraped listings.
+1. **Fetch:** Connects to a remote VPS database to download scraped listings.
 2. **Process:** Uses [Bielik-1.5B-v3](https://huggingface.co/speakleash/Bielik-1.5B-v3) to analyze text and extract structured information.
 3. **Upload:** Sends the processed data back to the VPS.
 
@@ -15,7 +15,7 @@ A specialized Jupyter Notebook designed to process listings using the **Bielik-1
 
 ## Installation
 
-This project uses `uv` for fast, reproducible dependency management.
+This project uses `uv` for reproducible dependency management.
 
 1. **Clone the repository and sync the environment:**
    ```bash
