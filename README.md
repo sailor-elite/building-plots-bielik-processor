@@ -2,6 +2,10 @@
 
 Jupyter Notebook designed to process listings using the **Bielik-1.5B-v3** Large Language Model.
 
+### Related Repositories
+* **Data Processing & LLM:** [building-plots-bielik-processor](https://github.com/sailor-elite/building-plots-bielik-processor)
+* **Transformation & EDA:** [Estate-data-transformation](https://github.com/sailor-elite/Estate-data-transformation/)
+
 ## Workflow
 1. **Fetch:** Connects to a remote VPS database to download scraped listings.
 2. **Process:** Uses [Bielik-1.5B-v3](https://huggingface.co/speakleash/Bielik-1.5B-v3) to analyze text and extract structured information.
